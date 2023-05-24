@@ -1,25 +1,106 @@
-import logo from './logo.svg';
-import './App.css';
+import {Table, Tag, Transfer } from 'antd';
+import difference from 'lodash/difference';
+import { useState } from 'react';
+import "./App.css"
+const TableTransfer = ({ leftColumns, rightColumns, ...restProps }) => (
+  <Transfer {...restProps}>
+    {({
+      direction,
+      filteredItems,
+      onItemSelectAll,
+      onItemSelect,
+      selectedKeys: listSelectedKeys,
+      disabled: listDisabled,
+    }) => {
+      const columns = direction === 'left' ? leftColumns : rightColumns;
+      const rowSelection = {
+        getCheckboxProps: (item) => ({
+          disabled: listDisabled || item.disabled,
+        }),
+        onSelectAll(selected, selectedRows) {
+          const treeSelectedKeys = selectedRows
+            .filter((item) => !item.disabled)
+            .map(({ key }) => key);
+          const diffKeys = selected
+            ? difference(treeSelectedKeys, listSelectedKeys)
+            : difference(listSelectedKeys, treeSelectedKeys);
+          onItemSelectAll(diffKeys, selected);
+        },
+        onSelect({ key }, selected) {
+          onItemSelect(key, selected);
+        },
+        selectedRowKeys: listSelectedKeys,
+      };
+      return (
 
-function App() {
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={filteredItems}
+          size="small"
+          style={{
+            pointerEvents: listDisabled ? 'none' : undefined,
+          }}
+          onRow={({ key, disabled: itemDisabled }) => ({
+            onClick: () => {
+              if (itemDisabled || listDisabled) return;
+              onItemSelect(key, !listSelectedKeys.includes(key));
+            },
+          })}
+        />
+      );
+    }}
+  </Transfer>
+);
+const mockTags = ['cat', 'dog', 'bird'];
+const mockData = Array.from({
+  length: 20,
+}).map((_, i) => ({
+  key: i.toString(),
+  title: `content${i + 1}`,
+  description: `description of content${i + 1}`,
+  tag: mockTags[i % 3],
+}));
+const originTargetKeys = mockData
+  .filter((item) => Number(item.key) % 3 > 1)
+  .map((item) => item.key);
+const leftTableColumns = [
+  {
+    dataIndex: 'title',
+    title: 'Name',
+  },
+  {
+    dataIndex: 'tag',
+    title: 'Tag',
+    render: (tag) => <Tag>{tag}</Tag>,
+  },
+  {
+    dataIndex: 'description',
+    title: 'Description',
+  },
+];
+const rightTableColumns = [
+  {
+    dataIndex: 'title',
+    title: 'Name',
+  },
+];
+const App = () => {
+  const [targetKeys, setTargetKeys] = useState(originTargetKeys);
+  const onChange = (nextTargetKeys) => {
+    setTargetKeys(nextTargetKeys);
+  };
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+      <TableTransfer
+        dataSource={mockData}
+        targetKeys={targetKeys}
+        onChange={onChange}
+        filterOption={(inputValue, item) =>
+          item.title.indexOf(inputValue) !== -1 || item.tag.indexOf(inputValue) !== -1
+        }
+        leftColumns={leftTableColumns}
+        rightColumns={rightTableColumns}
+      />
   );
-}
-
+};
 export default App;
